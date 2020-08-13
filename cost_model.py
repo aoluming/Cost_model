@@ -106,6 +106,7 @@ class Cost(nn.Module):
 if __name__ == "__main__":
     inputs = torch.rand(1, 3, 16, 224, 224)
     net=Cost(101,costblock, [3,4,6,3])
+    #testing for res50 , change the list for res18 or res101
     #net = costblock(64,64,stride=2)
 
     outputs = net(inputs)
