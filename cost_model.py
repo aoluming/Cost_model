@@ -19,7 +19,7 @@ class attentionblock(nn.Module):
         input1=input1.squeeze()
         input2 = input2.squeeze()
         input3 = input3.squeeze()
-        a=torch.cat((input1,input2,input3),0)
+        a=torch.cat((input1,input2,input3),1)
         a=self.linear(a)
         a=F.softmax(a,dim=0)
         return a
@@ -47,7 +47,7 @@ class costblock(nn.Module):
         out2=self.conv(x2).view(input.shape[0],input.shape[1],input.shape[2],int(input.shape[3]/self.stride),int(input.shape[4]/self.stride))
         out3=self.conv(x3).view(input.shape[0],input.shape[1],input.shape[2],int(input.shape[3]/self.stride),int(input.shape[4]/self.stride))
         a=self.attenblock(out1,out2,out3)
-        a1,a2,a3=a.chunk(3,dim=0)
+        a1,a2,a3=a.chunk(3,dim=1)
         output1=out1.permute(2,3,4,0,1)*a1+out2.permute(2,3,4,0,1)*a2+out3.permute(2,3,4,0,1)*a3
         output1=output1.permute(3,4,0,1,2)
         output1=self.conv2(output1)
