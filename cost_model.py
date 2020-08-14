@@ -82,7 +82,7 @@ class Cost(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avg_pool = nn.AdaptiveAvgPool3d(1)
         self.fc = nn.Linear(512 * 4, num_classes)
-
+        self.__init_weight()
     def forward(self, x):
 
         out = self.conv1(x)
@@ -102,6 +102,21 @@ class Cost(nn.Module):
 
         return out
 
+        def __init_weight(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv3d):
+                # n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                # m.weight.data.normal_(0, math.sqrt(2. / n))
+                torch.nn.init.kaiming_normal_(m.weight)
+            
+            elif isinstance(m, nn.Conv2d):
+                torch.nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()            
+            elif isinstance(m, nn.BatchNorm3d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
     def _make_layer(self, block, channels, n_blocks, stride=1):
         assert n_blocks > 0, "number of blocks should be greater than zero"
         layers = []
