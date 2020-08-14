@@ -14,7 +14,8 @@ class attentionblock(nn.Module):
         self.linear=nn.Linear(self.in_channel*3,self.in_channel*3)
         #print(self.linear)
     def forward(self,input1,input2,input3):
-
+        #print(input1.shape,"inpu1")
+        #print(input2.shape,"input2")
         input1=self.pool(input1)
         input2=self.pool(input2)
         input3=self.pool(input3)
@@ -24,7 +25,9 @@ class attentionblock(nn.Module):
         input1=input1.squeeze()
         input2 = input2.squeeze()
         input3 = input3.squeeze()
-
+        #print(input1.shape,"inpu1")
+        #print(input2.shape,"inpu2")
+        #print(input3.shape,"inpu3")
         a=torch.cat((input1,input2,input3),1)
         #print(a.shape)
         a=self.linear(a)
@@ -65,6 +68,12 @@ class costblock(nn.Module):
         x2=x2.contiguous().view(x2.shape[0],x2.shape[1],x2.shape[2],x2.shape[3]*x2.shape[4])
         x3=input.transpose(2,4)
         x3 = x3.contiguous().view(x3.shape[0], x3.shape[1], x3.shape[2], x3.shape[3] * x3.shape[4])
+        #print(input.shape[3])
+        #out1=self.conv(x1).view(input.shape[0],input.shape[1],input.shape[2],int(input.shape[3]/self.stride),int(input.shape[4]/self.stride))
+        #out1=self.batchnorm(out1)
+        #out1=self.relu(out1)
+        #out2=self.conv(x2).view(input.shape[0],input.shape[1],input.shape[2],int(input.shape[3]/self.stride),int(input.shape[4]/self.stride))
+        #out3=self.conv(x3).view(input.shape[0],input.shape[1],input.shape[2],int(input.shape[3]/self.stride),int(input.shape[4]/self.stride))
 
         out1=self.conv(x1)
         out1=self.batchnorm(out1)
@@ -78,7 +87,7 @@ class costblock(nn.Module):
         out3=self.batchnorm(out3)
         out3=self.relu(out3)
         out3 = out3.view(input.shape[0], input.shape[1], input.shape[2], int(input.shape[3] / self.stride),int(input.shape[4] / self.stride))
- 
+        #out=torch.cat((out1,out2,out3),1)
         a=self.attenblock(out1,out2,out3)
 
         a1,a2,a3=a.chunk(3,dim=1)
@@ -111,7 +120,11 @@ class Cost(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.avg_pool = nn.AdaptiveAvgPool3d(1)
-        self.fc = nn.Linear(512 * 4, num_classes)
+        self.dropout = nn.Dropout(p=0.5)
+        #self.fc = nn.Linear(512 * 4, num_classes)
+        self.fc1 = nn.Linear(2048, 1024)
+        self.fc2 = nn.Linear(1024, 1024)
+        self.fc3 = nn.Linear(1024, num_classes)
         self.__init_weight()
 
     def forward(self, x):
@@ -128,8 +141,13 @@ class Cost(nn.Module):
 
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
-        out = self.fc(out)
+        #out = self.fc(out)
+        out = self.relu(self.fc1(out))
+        out = self.dropout(out)
+        out = self.relu(self.fc2(out))
+        out = self.dropout(out)
 
+        out = self.fc3(out)
         return out
 
     def _make_layer(self, block, channels, n_blocks, stride=1):
@@ -145,7 +163,8 @@ class Cost(nn.Module):
     def __init_weight(self):
         for m in self.modules():
             if isinstance(m, nn.Conv3d):
-
+                # n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                # m.weight.data.normal_(0, math.sqrt(2. / n))
                 torch.nn.init.kaiming_normal_(m.weight)
             
             elif isinstance(m, nn.Conv2d):
@@ -156,6 +175,26 @@ class Cost(nn.Module):
             elif isinstance(m, nn.BatchNorm3d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+def get_1x_lr_params(model):
+    """
+    This generator returns all the parameters for conv and two fc layers of the net.
+    """
+    b = [model.conv1, model.layer1, model.layer2, model.layer3, model.layer4, model.fc1,
+         model.fc2]
+    for i in range(len(b)):
+        for k in b[i].parameters():
+            if k.requires_grad:
+                yield k
+
+def get_10x_lr_params(model):
+    """
+    This generator returns all the parameters for the last fc layer of the net.
+    """
+    b = [model.fc3]
+    for j in range(len(b)):
+        for k in b[j].parameters():
+            if k.requires_grad:
+                yield k
 
 
 if __name__ == "__main__":
